@@ -4,7 +4,7 @@
     <title>ultraweb v1.0</title>
     <style>
         body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
+        canvas { display: block; image-rendering: pixelated; }
         #crosshair {
             position: fixed;
             top: 50%;
@@ -51,10 +51,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <audio id="background-music" loop autoplay>
-        <source src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/mangos-mangos-mangos-phonk-made-with-Voicemod.mp3" type="audio/mp3">
-    </audio>
-
     <div id="crosshair"></div>
     <div id="countdown"></div>
     <div id="health-bar">
@@ -68,6 +64,10 @@
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+
+        // Create a separate off-screen canvas for bitcrushing effect
+        const bitCrushCanvas = document.createElement('canvas');
+        const bitCrushContext = bitCrushCanvas.getContext('2d');
 
         document.body.addEventListener("click", () => {
             document.body.requestPointerLock();
@@ -125,7 +125,8 @@
             camera.rotation.x = pitch;
         });
 
-        let baseSpeed = 0.1;
+        // Adjusted base speed for player movement
+        let baseSpeed = 0.05; // Slower movement speed
         let speed = baseSpeed;
         const keys = {};
         let velocityY = 0;
@@ -135,14 +136,14 @@
         window.addEventListener("keydown", (event) => {
             keys[event.key.toLowerCase()] = true;
             if (event.key.toLowerCase() === "shift") {
-                speed = baseSpeed * 1.5;
+                speed = baseSpeed * 1.5; // Sprint speed (optional)
             }
         });
 
         window.addEventListener("keyup", (event) => {
             keys[event.key.toLowerCase()] = false;
             if (event.key.toLowerCase() === "shift") {
-                speed = baseSpeed;
+                speed = baseSpeed; // Reset to normal speed
             }
         });
 
@@ -172,6 +173,13 @@
                 velocityY = 0;
                 isJumping = false;
             }
+
+            // Gun sway effect
+            const swayAmount = 0.05; // Adjust sway amount
+            const swayX = Math.sin(Date.now() * 0.002) * swayAmount;
+            const swayY = Math.sin(Date.now() * 0.004) * swayAmount * 0.75; // Slightly different for vertical sway
+            pistol.position.set(0.5 + swayX, -0.5 + swayY, -1);
+            shotgun.position.set(0.5 + swayX, -0.5 + swayY, -1);
         }
 
         let health = 100;
@@ -260,6 +268,9 @@
                 pistol.visible = !isShotgun;
                 shotgun.visible = isShotgun;
             }
+            if (event.key === "f") {
+                punch();
+            }
         });
 
         const enemies = [];
@@ -285,6 +296,17 @@
                     health -= 15;
                     updateHealthBar();
                     lastHitTime = Date.now();
+                }
+            });
+        }
+
+        function punch() {
+            const punchRadius = 1; // Radius of the punch effect
+            enemies.forEach((enemy, index) => {
+                if (enemy.position.distanceTo(player.position) < punchRadius) {
+                    scene.remove(enemy);
+                    enemies.splice(index, 1);
+                    spawnEnemy();
                 }
             });
         }
@@ -326,7 +348,19 @@
         function animate() {
             requestAnimationFrame(animate);
             moveEnemies();
+            update();
             renderer.render(scene, camera);
+
+            // Bit-crushing visual effect
+            const pixelSize = 18; // Adjust for more or less pixelation
+            bitCrushCanvas.width = Math.floor(window.innerWidth / pixelSize);
+            bitCrushCanvas.height = Math.floor(window.innerHeight / pixelSize);
+            bitCrushContext.imageSmoothingEnabled = false;
+
+            // Render the main scene onto the offscreen canvas with lower resolution
+            bitCrushContext.drawImage(renderer.domElement, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height);
+            // Draw the offscreen canvas back onto the main canvas
+            renderer.getContext().drawImage(bitCrushCanvas, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height, 0, 0, window.innerWidth, window.innerHeight);
         }
 
         animate();
