@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.1</title>
+    <title>ultraweb v1.2</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -47,6 +47,14 @@
             font-size: 20px;
             color: blue;
         }
+        #score-text {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -57,8 +65,20 @@
         <div id="health-bar-inner"></div>
     </div>
     <div id="weapon-text">Pistol Equipped</div>
+    <div id="score-text">Score: 0</div>
+
+    <!-- Audio Elements -->
+    <audio id="walk-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/FOOTSTEPS_(A)_Walking_Loop_01.ogg" preload="auto" loop></audio>
+    <audio id="shoot-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/Shoot1.ogg" preload="auto"></audio>
 
     <script>
+        const walkSound = document.getElementById('walk-sound');
+        const shootSound = document.getElementById('shoot-sound');
+        
+        // Set lower volume levels
+        walkSound.volume = 0.3; // 30% volume
+        shootSound.volume = 0.3; // 30% volume
+
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(120, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer();
@@ -133,10 +153,21 @@
         const gravity = -0.01;
         let isJumping = false;
 
+        // To manage sound states
+        let isWalking = false;
+
+        // Score tracking
+        let score = 0;
+
         window.addEventListener("keydown", (event) => {
             keys[event.key.toLowerCase()] = true;
             if (event.key.toLowerCase() === "shift") {
                 speed = baseSpeed * 1.5; // Sprint speed (optional)
+            }
+            // Start walking sound if the player is moving
+            if (!isWalking && (keys['w'] || keys['a'] || keys['s'] || keys['d'])) {
+                walkSound.play();
+                isWalking = true;
             }
         });
 
@@ -144,6 +175,12 @@
             keys[event.key.toLowerCase()] = false;
             if (event.key.toLowerCase() === "shift") {
                 speed = baseSpeed; // Reset to normal speed
+            }
+            // Stop walking sound if the player stops moving
+            if (isWalking && !(keys['w'] || keys['a'] || keys['s'] || keys['d'])) {
+                walkSound.pause();
+                walkSound.currentTime = 0; // Reset sound
+                isWalking = false;
             }
         });
 
@@ -184,12 +221,18 @@
 
         let health = 100;
         const healthBarInner = document.getElementById('health-bar-inner');
+        const scoreText = document.getElementById('score-text');
 
         function updateHealthBar() {
             healthBarInner.style.width = `${health}%`;
             if (health <= 0) {
                 resetGame();
             }
+        }
+
+        function updateScore(amount) {
+            score += amount;
+            scoreText.textContent = `Score: ${score}`;
         }
 
         let canShoot = true;
@@ -199,6 +242,10 @@
             if (!canShoot) return;
             canShoot = false;
             setTimeout(() => canShoot = true, isShotgun ? 500 : 300);
+            
+            // Play the shooting sound
+            shootSound.currentTime = 0; // Reset sound
+            shootSound.play();
 
             const direction = new THREE.Vector3();
             camera.getWorldDirection(direction);
@@ -223,6 +270,8 @@
                             } else {
                                 enemies.forEach((enemy, index) => {
                                     if (bullet.position.distanceTo(enemy.position) < 1) {
+                                        const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
+                                        updateScore(scoreAmount);
                                         scene.remove(enemy);
                                         enemies.splice(index, 1);
                                         spawnEnemy();
@@ -248,6 +297,8 @@
                     } else {
                         enemies.forEach((enemy, index) => {
                             if (bullet.position.distanceTo(enemy.position) < 1) {
+                                const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
+                                updateScore(scoreAmount);
                                 scene.remove(enemy);
                                 enemies.splice(index, 1);
                                 spawnEnemy();
@@ -306,6 +357,8 @@
                 if (enemy.position.distanceTo(player.position) < punchRadius) {
                     scene.remove(enemy);
                     enemies.splice(index, 1);
+                    const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
+                    updateScore(scoreAmount);
                     spawnEnemy();
                 }
             });
@@ -340,6 +393,8 @@
             enemies.forEach(enemy => scene.remove(enemy));
             enemies.length = 0;
             player.position.set(0, 1, 0);
+            score = 0; // Reset score
+            scoreText.textContent = `Score: ${score}`; // Update score display
             spawnEnemy();
             spawnEnemy();
             spawnEnemy();
