@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.2</title>
+    <title>ultraweb v1.3</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -70,14 +70,17 @@
     <!-- Audio Elements -->
     <audio id="walk-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/FOOTSTEPS_(A)_Walking_Loop_01.ogg" preload="auto" loop></audio>
     <audio id="shoot-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/Shoot1.ogg" preload="auto"></audio>
+    <audio id="punch-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/PunchSwoosh.ogg" preload="auto"></audio>
 
     <script>
         const walkSound = document.getElementById('walk-sound');
         const shootSound = document.getElementById('shoot-sound');
+        const punchSound = document.getElementById('punch-sound');
         
         // Set lower volume levels
         walkSound.volume = 0.3; // 30% volume
         shootSound.volume = 0.3; // 30% volume
+        punchSound.volume = 0.5; // 50% volume for punch sound
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(120, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -133,6 +136,14 @@
         shotgun.position.set(0.5, -0.5, -1);
         shotgun.visible = false; // Initially hide shotgun
 
+        // Rocket Launcher geometry
+        const rocketLauncherGeometry = new THREE.BoxGeometry(0.5, 0.3, 1.2);
+        const rocketLauncherMaterial = new THREE.MeshBasicMaterial({ color: 0x8B0000 });
+        const rocketLauncher = new THREE.Mesh(rocketLauncherGeometry, rocketLauncherMaterial);
+        camera.add(rocketLauncher);
+        rocketLauncher.position.set(0.5, -0.5, -1);
+        rocketLauncher.visible = false; // Initially hide rocket launcher
+
         let yaw = 0;
         let pitch = 0;
         document.addEventListener("mousemove", (event) => {
@@ -150,7 +161,7 @@
         let speed = baseSpeed;
         const keys = {};
         let velocityY = 0;
-        const gravity = -0.01;
+        const gravity = -0.008; // Reduced gravity
         let isJumping = false;
 
         // To manage sound states
@@ -199,7 +210,7 @@
             if (keys['d']) player.position.addScaledVector(right, speed);
 
             if (keys[' '] && !isJumping) {
-                velocityY = 0.2;
+                velocityY = 0.15; // Increased jump force
                 isJumping = true;
             }
             velocityY += gravity;
@@ -217,6 +228,7 @@
             const swayY = Math.sin(Date.now() * 0.004) * swayAmount * 0.75; // Slightly different for vertical sway
             pistol.position.set(0.5 + swayX, -0.5 + swayY, -1);
             shotgun.position.set(0.5 + swayX, -0.5 + swayY, -1);
+            rocketLauncher.position.set(0.5 + swayX, -0.5 + swayY, -1);
         }
 
         let health = 100;
@@ -237,12 +249,16 @@
 
         let canShoot = true;
         let isShotgun = false;
+        let isRocketLauncher = false;
 
         function shoot() {
             if (!canShoot) return;
             canShoot = false;
-            setTimeout(() => canShoot = true, isShotgun ? 500 : 300);
-            
+
+            // Set cooldown based on the current weapon
+            const cooldown = isRocketLauncher ? 1000 : (isShotgun ? 500 : 300);
+            setTimeout(() => canShoot = true, cooldown);
+
             // Play the shooting sound
             shootSound.currentTime = 0; // Reset sound
             shootSound.play();
@@ -250,7 +266,33 @@
             const direction = new THREE.Vector3();
             camera.getWorldDirection(direction);
 
-            if (isShotgun) {
+            if (isRocketLauncher) {
+                const rocketGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                const rocketMaterial = new THREE.MeshBasicMaterial({ color: 0xff4500 });
+                const rocket = new THREE.Mesh(rocketGeometry, rocketMaterial);
+                scene.add(rocket);
+                rocket.position.copy(pistol.position).applyMatrix4(pistol.matrixWorld);
+
+                function moveRocket() {
+                    rocket.position.addScaledVector(direction, 0.5);
+                    if (rocket.position.length() > 50) {
+                        scene.remove(rocket);
+                    } else {
+                        enemies.forEach((enemy, index) => {
+                            if (rocket.position.distanceTo(enemy.position) < 2) { // Explosion radius
+                                const scoreAmount = Math.floor(Math.random() * 10) + 5; // Higher score for rockets
+                                updateScore(scoreAmount);
+                                scene.remove(enemy);
+                                enemies.splice(index, 1);
+                                spawnEnemy();
+                                scene.remove(rocket); // Remove rocket after explosion
+                            }
+                        });
+                        requestAnimationFrame(moveRocket);
+                    }
+                }
+                moveRocket();
+            } else if (isShotgun) {
                 for (let x = -1; x <= 1; x++) {
                     for (let y = -1; y <= 1; y++) {
                         if (x === 0 && y === 0) continue;
@@ -313,11 +355,29 @@
 
         window.addEventListener("click", shoot);
         window.addEventListener("keydown", (event) => {
+            if (event.key === "1") {
+                isShotgun = false;
+                isRocketLauncher = false;
+                document.getElementById('weapon-text').textContent = "Pistol Equipped";
+                pistol.visible = true;
+                shotgun.visible = false;
+                rocketLauncher.visible = false;
+            }
             if (event.key === "2") {
-                isShotgun = !isShotgun;
-                document.getElementById('weapon-text').textContent = isShotgun ? "Shotgun Equipped" : "Pistol Equipped";
-                pistol.visible = !isShotgun;
-                shotgun.visible = isShotgun;
+                isShotgun = true;
+                isRocketLauncher = false;
+                document.getElementById('weapon-text').textContent = "Shotgun Equipped";
+                pistol.visible = false;
+                shotgun.visible = true;
+                rocketLauncher.visible = false;
+            }
+            if (event.key === "3") {
+                isRocketLauncher = true;
+                isShotgun = false;
+                document.getElementById('weapon-text').textContent = "Rocket Launcher Equipped";
+                pistol.visible = false;
+                shotgun.visible = false;
+                rocketLauncher.visible = true;
             }
             if (event.key === "f") {
                 punch();
@@ -352,7 +412,10 @@
         }
 
         function punch() {
-            const punchRadius = 1; // Radius of the punch effect
+            const punchRadius = 3; // Increased punch radius (similar to ULTRAKILL)
+            punchSound.currentTime = 0; // Reset sound
+            punchSound.play(); // Play punch sound
+
             enemies.forEach((enemy, index) => {
                 if (enemy.position.distanceTo(player.position) < punchRadius) {
                     scene.remove(enemy);
