@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.3</title>
+    <title>ultraweb v1.4</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -251,6 +251,40 @@
         let isShotgun = false;
         let isRocketLauncher = false;
 
+        // Function to create a blood effect
+        function createBloodEffect(position) {
+            const bloodCount = 10; // Number of blood splats per hit
+            for (let i = 0; i < bloodCount; i++) {
+                const bloodGeometry = new THREE.SphereGeometry(0.2, 8, 8); // Increased radius from 0.1 to 0.2
+                const bloodMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const blood = new THREE.Mesh(bloodGeometry, bloodMaterial);
+                scene.add(blood);
+                // Position blood splats with a wider spread and ensure they touch the floor (y = 0)
+                blood.position.set(
+                    position.x + (Math.random() - 0.5) * 1.0, // Spread horizontally
+                    0.1, // Newly set to a very small height to simulate touching the floor
+                    position.z + (Math.random() - 0.5) * 1.0 // Spread vertically
+                );
+
+                // Animate fading out blood effect
+                const fadeOutDuration = 15000; // Duration in ms (15 seconds)
+                const startTime = Date.now();
+
+                function fadeOut() {
+                    const elapsed = Date.now() - startTime;
+                    const alpha = 1 - (elapsed / fadeOutDuration);
+                    blood.scale.set(alpha, alpha, alpha);
+
+                    if (elapsed < fadeOutDuration) {
+                        requestAnimationFrame(fadeOut);
+                    } else {
+                        scene.remove(blood);
+                    }
+                }
+                fadeOut();
+            }
+        }
+
         function shoot() {
             if (!canShoot) return;
             canShoot = false;
@@ -282,6 +316,7 @@
                             if (rocket.position.distanceTo(enemy.position) < 2) { // Explosion radius
                                 const scoreAmount = Math.floor(Math.random() * 10) + 5; // Higher score for rockets
                                 updateScore(scoreAmount);
+                                createBloodEffect(enemy.position); // Create blood effect here
                                 scene.remove(enemy);
                                 enemies.splice(index, 1);
                                 spawnEnemy();
@@ -314,6 +349,7 @@
                                     if (bullet.position.distanceTo(enemy.position) < 1) {
                                         const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
                                         updateScore(scoreAmount);
+                                        createBloodEffect(enemy.position); // Create blood effect here
                                         scene.remove(enemy);
                                         enemies.splice(index, 1);
                                         spawnEnemy();
@@ -341,6 +377,7 @@
                             if (bullet.position.distanceTo(enemy.position) < 1) {
                                 const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
                                 updateScore(scoreAmount);
+                                createBloodEffect(enemy.position); // Create blood effect here
                                 scene.remove(enemy);
                                 enemies.splice(index, 1);
                                 spawnEnemy();
@@ -418,6 +455,7 @@
 
             enemies.forEach((enemy, index) => {
                 if (enemy.position.distanceTo(player.position) < punchRadius) {
+                    createBloodEffect(enemy.position); // Create blood effect here
                     scene.remove(enemy);
                     enemies.splice(index, 1);
                     const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
