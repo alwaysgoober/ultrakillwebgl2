@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.4</title>
+    <title>ultraweb v1.5</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -161,7 +161,7 @@
         let speed = baseSpeed;
         const keys = {};
         let velocityY = 0;
-        const gravity = -0.008; // Reduced gravity
+        const gravity = -0.006; // Reduced gravity
         let isJumping = false;
 
         // To manage sound states
@@ -253,17 +253,17 @@
 
         // Function to create a blood effect
         function createBloodEffect(position) {
-            const bloodCount = 10; // Number of blood splats per hit
+            const bloodCount = 20; // Number of blood splats per hit
             for (let i = 0; i < bloodCount; i++) {
-                const bloodGeometry = new THREE.SphereGeometry(0.2, 8, 8); // Increased radius from 0.1 to 0.2
+                const bloodGeometry = new THREE.SphereGeometry(0.3, 9, 9); // Increased radius from 0.1 to 0.2
                 const bloodMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
                 const blood = new THREE.Mesh(bloodGeometry, bloodMaterial);
                 scene.add(blood);
                 // Position blood splats with a wider spread and ensure they touch the floor (y = 0)
                 blood.position.set(
-                    position.x + (Math.random() - 0.5) * 1.0, // Spread horizontally
+                    position.x + (Math.random() - 0.1) * 2.0, // Spread horizontally
                     0.1, // Newly set to a very small height to simulate touching the floor
-                    position.z + (Math.random() - 0.5) * 1.0 // Spread vertically
+                    position.z + (Math.random() - 0.1) * 2.0 // Spread vertically
                 );
 
                 // Animate fading out blood effect
@@ -422,23 +422,42 @@
         });
 
         const enemies = [];
-        const enemySpeed = 0.10;
+        const normalEnemySpeed = 0.10; // Speed for normal enemies
+        const blueEnemySpeed = 0.15; // Slightly faster speed for blue enemies
         let lastHitTime = 0;
 
+        function spawnBlueEnemy() {
+            const blueEnemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
+            const blueEnemyMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
+            const blueEnemy = new THREE.Mesh(blueEnemyGeometry, blueEnemyMaterial);
+            scene.add(blueEnemy);
+            blueEnemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
+            enemies.push(blueEnemy);
+        }
+
         function spawnEnemy() {
-            const enemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
-            const enemyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
-            scene.add(enemy);
-            enemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
-            enemies.push(enemy);
+            // Generate a random number from 1 to 5
+            const randomChance = Math.floor(Math.random() * 5) + 1; // Produces 1-5
+            if (randomChance === 1) { // 1 in 5 chance
+                spawnBlueEnemy(); // Spawn the blue enemy
+            } else {
+                const enemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
+                const enemyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+                scene.add(enemy);
+                enemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
+                enemies.push(enemy);
+            }
         }
 
         function moveEnemies() {
             enemies.forEach(enemy => {
                 const direction = new THREE.Vector3();
                 direction.subVectors(player.position, enemy.position).normalize();
-                enemy.position.addScaledVector(direction, enemySpeed);
+
+                // Determine speed based on enemy color
+                let currentSpeed = enemy.material.color.getHex() === 0x0000ff ? blueEnemySpeed : normalEnemySpeed;
+                enemy.position.addScaledVector(direction, currentSpeed);
 
                 if (enemy.position.distanceTo(player.position) < 1 && (Date.now() - lastHitTime > 1000)) {
                     health -= 15;
