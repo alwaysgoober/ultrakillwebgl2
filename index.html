@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.5</title>
+    <title>ultraweb v1.6</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -72,15 +72,49 @@
     <audio id="shoot-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/Shoot1.ogg" preload="auto"></audio>
     <audio id="punch-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/PunchSwoosh.ogg" preload="auto"></audio>
 
+    <!-- New Game Music Elements -->
+    <audio id="game-music-1" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/0-1.wav" preload="auto" loop></audio>
+    <audio id="game-music-2" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/0-2.wav" preload="auto" loop></audio>
+    <audio id="game-music-3" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/1-1.wav" preload="auto" loop></audio>
+
     <script>
         const walkSound = document.getElementById('walk-sound');
         const shootSound = document.getElementById('shoot-sound');
         const punchSound = document.getElementById('punch-sound');
         
-        // Set lower volume levels
+        // Set lower volume levels for sound effects
         walkSound.volume = 0.3; // 30% volume
         shootSound.volume = 0.3; // 30% volume
         punchSound.volume = 0.5; // 50% volume for punch sound
+
+        // Variables to manage game music
+        const musicTracks = [
+            document.getElementById('game-music-1'),
+            document.getElementById('game-music-2'),
+            document.getElementById('game-music-3')
+        ];
+        let lastTrackIndex = -1;
+
+        // Set the volume for the music tracks (lowered to 10%)
+        musicTracks.forEach(track => {
+            track.volume = 0.4; // Set game music volume to 10%
+        });
+
+        // Function to play a random music track
+        function playRandomMusic() {
+            let currentTrackIndex;
+            do {
+                currentTrackIndex = Math.floor(Math.random() * musicTracks.length);
+            } while (currentTrackIndex === lastTrackIndex); // Ensure it's not the same as last
+            
+            if (lastTrackIndex !== -1) {
+                musicTracks[lastTrackIndex].pause(); // Stop the last track
+            }
+            
+            lastTrackIndex = currentTrackIndex;
+            musicTracks[currentTrackIndex].currentTime = 0; // Reset and play the new track
+            musicTracks[currentTrackIndex].play();
+        }
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(120, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -499,6 +533,7 @@
         }
 
         function gameStart() {
+            playRandomMusic(); // Start playing music when the game starts
             spawnEnemy();
             spawnEnemy();
             spawnEnemy();
@@ -535,7 +570,8 @@
             // Render the main scene onto the offscreen canvas with lower resolution
             bitCrushContext.drawImage(renderer.domElement, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height);
             // Draw the offscreen canvas back onto the main canvas
-            renderer.getContext().drawImage(bitCrushCanvas, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height, 0, 0, window.innerWidth, window.innerHeight);
+            const mainContext = renderer.domElement.getContext('2d'); 
+            mainContext.drawImage(bitCrushCanvas, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height, 0, 0, window.innerWidth, window.innerHeight);
         }
 
         animate();
