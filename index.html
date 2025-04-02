@@ -55,15 +55,6 @@
             color: white;
             font-family: Arial, sans-serif;
         }
-        #health-boost-message {
-            position: fixed;
-            bottom: 50px; /* Adjust the position */
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 20px;
-            color: yellow;
-            display: none; /* Initially hidden */
-        }
         /* Death Screen Style */
         #death-screen {
             position: fixed;
@@ -90,13 +81,16 @@
     </div>
     <div id="weapon-text">Pistol Equipped</div>
     <div id="score-text">Score: 0</div>
-    <div id="health-boost-message">Press X for health boost</div>
+
+    <!-- Death Screen Element -->
     <div id="death-screen"></div>
 
     <!-- Audio Elements -->
     <audio id="walk-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/FOOTSTEPS_(A)_Walking_Loop_01.ogg" preload="auto" loop></audio>
     <audio id="shoot-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/Shoot1.ogg" preload="auto"></audio>
     <audio id="punch-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/PunchSwoosh.ogg" preload="auto"></audio>
+
+    <!-- New Game Music Elements -->
     <audio id="game-music-1" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/0-1.wav" preload="auto" loop></audio>
     <audio id="game-music-2" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/0-2.wav" preload="auto" loop></audio>
     <audio id="game-music-3" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/1-1.wav" preload="auto" loop></audio>
@@ -121,8 +115,24 @@
 
         // Set music volume for all tracks
         musicTracks.forEach(track => {
-            track.volume = 0.4; // Set game music volume to 40%
+            track.volume = 0.4; // Set game music volume to 10%
         });
+
+        // Function to play a random music track
+        function playRandomMusic() {
+            let currentTrackIndex;
+            do {
+                currentTrackIndex = Math.floor(Math.random() * musicTracks.length);
+            } while (currentTrackIndex === lastTrackIndex); // Ensure it's not the same as last
+            
+            if (lastTrackIndex !== -1) {
+                musicTracks[lastTrackIndex].pause(); // Stop the last track
+            }
+            
+            lastTrackIndex = currentTrackIndex;
+            musicTracks[currentTrackIndex].currentTime = 0; // Reset and play the new track
+            musicTracks[currentTrackIndex].play();
+        }
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(120, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -210,9 +220,6 @@
 
         // Score tracking
         let score = 0;
-        const scoreText = document.getElementById('score-text');
-        const healthBoostMessage = document.getElementById('health-boost-message');
-        let healthBoostTimeout;
 
         window.addEventListener("keydown", (event) => {
             keys[event.key.toLowerCase()] = true;
@@ -277,6 +284,9 @@
 
         let health = 100;
         const healthBarInner = document.getElementById('health-bar-inner');
+        const scoreText = document.getElementById('score-text');
+        const deathScreen = document.getElementById('death-screen');
+        const deathMessages = ["l bozo", "get better", "you're trash", "change games", "move countries", "get out!", "quit buddy"];
 
         function updateHealthBar() {
             healthBarInner.style.width = `${health}%`;
@@ -285,138 +295,27 @@
             }
         }
 
-        function showHealthBoostMessage() {
-            healthBoostMessage.style.display = 'block';
-            healthBoostTimeout = setTimeout(() => {
-                healthBoostMessage.style.display = 'none';
-            }, 10000); // Hide message after 10 seconds
+        function showDeathScreen() {
+            // Stop sounds and freeze game logic
+            walkSound.pause();
+            shootSound.pause();
+
+            // Randomly select a message
+            const randomMessage = deathMessages[Math.floor(Math.random() * deathMessages.length)];
+            deathScreen.textContent = `You died\nPress "R" to restart\n${randomMessage}`;
+            deathScreen.style.display = 'block'; // Show death screen
         }
 
         function updateScore(amount) {
             score += amount;
             scoreText.textContent = `Score: ${score}`;
-
-            if (score % 100 === 0) {
-                showHealthBoostMessage();
-            }
-        }
-
-        function resetHealthBoostTimer() {
-            clearTimeout(healthBoostTimeout);
-            healthBoostMessage.style.display = 'none';
-        }
-
-        function handleHealthBoost() {
-            // Restore health to 100
-            health = 100;
-            updateHealthBar();
-            resetHealthBoostTimer();
         }
 
         let canShoot = true;
         let isShotgun = false;
         let isRocketLauncher = false;
 
-        // Enemy logic
-        const enemies = [];
-        const normalEnemySpeed = 0.10; // Speed for normal enemies
-        const blueEnemySpeed = 0.15; // Slightly faster speed for blue enemies
-        let lastHitTime = 0;
-
-        function spawnEnemy() {
-            const randomChance = Math.floor(Math.random() * 5) + 1; // Produces 1-5
-            let enemy;
-
-            if (randomChance === 1) { // 1 in 5 chance for blue enemy
-                const blueEnemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
-                const blueEnemyMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
-                enemy = new THREE.Mesh(blueEnemyGeometry, blueEnemyMaterial);
-            } else {
-                const enemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
-                const enemyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
-            }
-
-            // Position the enemy within bounds (make sure they spawn in front of the player)
-            enemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
-            scene.add(enemy);
-            enemies.push(enemy);
-        }
-
-        function moveEnemies() {
-            enemies.forEach(enemy => {
-                const direction = new THREE.Vector3();
-                direction.subVectors(player.position, enemy.position).normalize();
-
-                let currentSpeed = enemy.material.color.getHex() === 0x0000ff ? blueEnemySpeed : normalEnemySpeed;
-                enemy.position.addScaledVector(direction, currentSpeed);
-
-                // Check if enemy is very close to the player
-                if (enemy.position.distanceTo(player.position) < 1 && (Date.now() - lastHitTime > 1000)) {
-                    health -= 15;
-                    updateHealthBar();
-                    lastHitTime = Date.now();
-                }
-            });
-        }
-
-        function punch() {
-            const punchRadius = 3; // Increased punch radius
-            punchSound.currentTime = 0; // Reset sound
-            punchSound.play(); // Play punch sound
-
-            enemies.forEach((enemy, index) => {
-                if (enemy.position.distanceTo(player.position) < punchRadius) {
-                    createBloodEffect(enemy.position); // Create blood effect here
-                    scene.remove(enemy);
-                    enemies.splice(index, 1);
-                    const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
-                    updateScore(scoreAmount);
-                    spawnEnemy(); // Spawn a new enemy after punching
-                }
-            });
-        }
-
-        let countdown = 3;
-        const countdownElement = document.getElementById("countdown");
-
-        function startCountdown() {
-            countdownElement.textContent = countdown;
-            if (countdown > 0) {
-                countdown--;
-                setTimeout(startCountdown, 1000);
-            } else {
-                countdownElement.style.display = "none";
-                gameStart();
-            }
-        }
-
-        function gameStart() {
-            playRandomMusic(); // Start playing music when the game starts
-            // Spawn initial enemies
-            for (let i = 0; i < 3; i++) {
-                spawnEnemy();
-            }
-            setInterval(update, 1000 / 60);
-        }
-
-        function resetGame() {
-            health = 100;
-            updateHealthBar();
-            enemies.forEach(enemy => scene.remove(enemy));
-            enemies.length = 0;
-            player.position.set(0, 1, 0);
-            score = 0; // Reset score
-            scoreText.textContent = `Score: ${score}`; // Update score display
-            resetHealthBoostTimer(); // Reset health boost timer
-            deathScreen.style.display = 'none'; // Hide the death screen
-
-            // Spawn initial enemies
-            for (let i = 0; i < 3; i++) {
-                spawnEnemy();
-            }
-        }
-
+        // Function to create a blood effect
         function createBloodEffect(position) {
             const bloodCount = 20; // Number of blood splats per hit
             for (let i = 0; i < bloodCount; i++) {
@@ -425,9 +324,9 @@
                 const blood = new THREE.Mesh(bloodGeometry, bloodMaterial);
                 scene.add(blood);
                 blood.position.set(
-                    position.x + (Math.random() - 0.5) * 2.0, // Spread horizontally
+                    position.x + (Math.random() - 0.1) * 2.0, // Spread horizontally
                     0.1, // Newly set to a very small height to simulate touching the floor
-                    position.z + (Math.random() - 0.5) * 2.0 // Spread vertically
+                    position.z + (Math.random() - 0.1) * 2.0 // Spread vertically
                 );
 
                 // Animate fading out blood effect
@@ -481,7 +380,7 @@
                                 createBloodEffect(enemy.position); // Create blood effect here
                                 scene.remove(enemy);
                                 enemies.splice(index, 1);
-                                spawnEnemy(); // Spawn a new enemy after shooting
+                                spawnEnemy();
                                 scene.remove(rocket); // Remove rocket after explosion
                             }
                         });
@@ -514,7 +413,7 @@
                                         createBloodEffect(enemy.position); // Create blood effect here
                                         scene.remove(enemy);
                                         enemies.splice(index, 1);
-                                        spawnEnemy(); // Spawn a new enemy after shooting
+                                        spawnEnemy();
                                     }
                                 });
                                 requestAnimationFrame(moveBullet);
@@ -542,7 +441,7 @@
                                 createBloodEffect(enemy.position); // Create blood effect here
                                 scene.remove(enemy);
                                 enemies.splice(index, 1);
-                                spawnEnemy(); // Spawn a new enemy after shooting
+                                spawnEnemy();
                             }
                         });
                         requestAnimationFrame(moveBullet);
@@ -584,13 +483,105 @@
             if (event.key === "f") {
                 punch();
             }
-            if (event.key === "x") {
-                // Check if boost message is displayed and apply health boost
-                if (healthBoostMessage.style.display === 'block') {
-                    handleHealthBoost(); // Restore health to 100
-                }
-            }
         });
+
+        const enemies = [];
+        const normalEnemySpeed = 0.10; // Speed for normal enemies
+        const blueEnemySpeed = 0.15; // Slightly faster speed for blue enemies
+        let lastHitTime = 0;
+
+        function spawnBlueEnemy() {
+            const blueEnemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
+            const blueEnemyMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
+            const blueEnemy = new THREE.Mesh(blueEnemyGeometry, blueEnemyMaterial);
+            scene.add(blueEnemy);
+            blueEnemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
+            enemies.push(blueEnemy);
+        }
+
+        function spawnEnemy() {
+            const randomChance = Math.floor(Math.random() * 5) + 1; // Produces 1-5
+            if (randomChance === 1) { // 1 in 5 chance
+                spawnBlueEnemy(); // Spawn the blue enemy
+            } else {
+                const enemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
+                const enemyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+                scene.add(enemy);
+                enemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
+                enemies.push(enemy);
+            }
+        }
+
+        function moveEnemies() {
+            enemies.forEach(enemy => {
+                const direction = new THREE.Vector3();
+                direction.subVectors(player.position, enemy.position).normalize();
+
+                let currentSpeed = enemy.material.color.getHex() === 0x0000ff ? blueEnemySpeed : normalEnemySpeed;
+                enemy.position.addScaledVector(direction, currentSpeed);
+
+                if (enemy.position.distanceTo(player.position) < 1 && (Date.now() - lastHitTime > 1000)) {
+                    health -= 15;
+                    updateHealthBar();
+                    lastHitTime = Date.now();
+                }
+            });
+        }
+
+        function punch() {
+            const punchRadius = 3; // Increased punch radius
+            punchSound.currentTime = 0; // Reset sound
+            punchSound.play(); // Play punch sound
+
+            enemies.forEach((enemy, index) => {
+                if (enemy.position.distanceTo(player.position) < punchRadius) {
+                    createBloodEffect(enemy.position); // Create blood effect here
+                    scene.remove(enemy);
+                    enemies.splice(index, 1);
+                    const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
+                    updateScore(scoreAmount);
+                    spawnEnemy();
+                }
+            });
+        }
+
+        let countdown = 3;
+        const countdownElement = document.getElementById("countdown");
+
+        function startCountdown() {
+            countdownElement.textContent = countdown;
+            if (countdown > 0) {
+                countdown--;
+                setTimeout(startCountdown, 1000);
+            } else {
+                countdownElement.style.display = "none";
+                gameStart();
+            }
+        }
+
+        function gameStart() {
+            playRandomMusic(); // Start playing music when the game starts
+            spawnEnemy();
+            spawnEnemy();
+            spawnEnemy();
+            setInterval(update, 1000 / 60);
+        }
+
+        function resetGame() {
+            health = 100;
+            updateHealthBar();
+            enemies.forEach(enemy => scene.remove(enemy));
+            enemies.length = 0;
+            player.position.set(0, 1, 0);
+            score = 0; // Reset score
+            scoreText.textContent = `Score: ${score}`; // Update score display
+            deathScreen.style.display = 'none'; // Hide the death screen
+
+            spawnEnemy();
+            spawnEnemy();
+            spawnEnemy();
+        }
 
         function animate() {
             requestAnimationFrame(animate);
