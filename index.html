@@ -317,182 +317,6 @@
         let isShotgun = false;
         let isRocketLauncher = false;
 
-        // Function to create a blood effect
-        function createBloodEffect(position) {
-            const bloodCount = 20; // Number of blood splats per hit
-            for (let i = 0; i < bloodCount; i++) {
-                const bloodGeometry = new THREE.SphereGeometry(0.3, 9, 9); // Increased radius from 0.1 to 0.2
-                const bloodMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-                const blood = new THREE.Mesh(bloodGeometry, bloodMaterial);
-                scene.add(blood);
-                blood.position.set(
-                    position.x + (Math.random() - 0.1) * 2.0, // Spread horizontally
-                    0.1, // Newly set to a very small height to simulate touching the floor
-                    position.z + (Math.random() - 0.1) * 2.0 // Spread vertically
-                );
-
-                // Animate fading out blood effect
-                const fadeOutDuration = 15000; // Duration in ms (15 seconds)
-                const startTime = Date.now();
-
-                function fadeOut() {
-                    const elapsed = Date.now() - startTime;
-                    const alpha = 1 - (elapsed / fadeOutDuration);
-                    blood.scale.set(alpha, alpha, alpha);
-
-                    if (elapsed < fadeOutDuration) {
-                        requestAnimationFrame(fadeOut);
-                    } else {
-                        scene.remove(blood);
-                    }
-                }
-                fadeOut();
-            }
-        }
-
-        function shoot() {
-            if (!canShoot) return;
-            canShoot = false;
-
-            const cooldown = isRocketLauncher ? 1000 : (isShotgun ? 500 : 300);
-            setTimeout(() => canShoot = true, cooldown);
-
-            shootSound.currentTime = 0; // Reset sound
-            shootSound.play();
-
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
-
-            if (isRocketLauncher) {
-                const rocketGeometry = new THREE.SphereGeometry(0.2, 8, 8);
-                const rocketMaterial = new THREE.MeshBasicMaterial({ color: 0xff4500 });
-                const rocket = new THREE.Mesh(rocketGeometry, rocketMaterial);
-                scene.add(rocket);
-                rocket.position.copy(pistol.position).applyMatrix4(pistol.matrixWorld);
-
-                function moveRocket() {
-                    rocket.position.addScaledVector(direction, 0.5);
-                    if (rocket.position.length() > 50) {
-                        scene.remove(rocket);
-                    } else {
-                        enemies.forEach((enemy, index) => {
-                            if (rocket.position.distanceTo(enemy.position) < 2) { // Explosion radius
-                                const scoreAmount = Math.floor(Math.random() * 10) + 5; // Higher score for rockets
-                                updateScore(scoreAmount);
-                                createBloodEffect(enemy.position); // Create blood effect here
-                                scene.remove(enemy);
-                                enemies.splice(index, 1);
-                                spawnEnemy();
-                                scene.remove(rocket); // Remove rocket after explosion
-                            }
-                        });
-                        requestAnimationFrame(moveRocket);
-                    }
-                }
-                moveRocket();
-            } else if (isShotgun) {
-                for (let x = -1; x <= 1; x++) {
-                    for (let y = -1; y <= 1; y++) {
-                        if (x === 0 && y === 0) continue;
-                        const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-                        const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-                        const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-                        scene.add(bullet);
-                        bullet.position.copy(pistol.position).applyMatrix4(pistol.matrixWorld);
-
-                        const bulletDirection = new THREE.Vector3().add(direction).add(new THREE.Vector3(x * 0.1, 0, y * 0.1));
-                        bulletDirection.normalize();
-
-                        function moveBullet() {
-                            bullet.position.addScaledVector(bulletDirection, 0.5);
-                            if (bullet.position.length() > 50) {
-                                scene.remove(bullet);
-                            } else {
-                                enemies.forEach((enemy, index) => {
-                                    if (bullet.position.distanceTo(enemy.position) < 1) {
-                                        const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
-                                        updateScore(scoreAmount);
-                                        createBloodEffect(enemy.position); // Create blood effect here
-                                        scene.remove(enemy);
-                                        enemies.splice(index, 1);
-                                        spawnEnemy();
-                                    }
-                                });
-                                requestAnimationFrame(moveBullet);
-                            }
-                        }
-                        moveBullet();
-                    }
-                }
-            } else {
-                const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-                const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00 });
-                const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-                scene.add(bullet);
-                bullet.position.copy(pistol.position).applyMatrix4(pistol.matrixWorld);
-
-                function moveBullet() {
-                    bullet.position.addScaledVector(direction, 0.5);
-                    if (bullet.position.length() > 50) {
-                        scene.remove(bullet);
-                    } else {
-                        enemies.forEach((enemy, index) => {
-                            if (bullet.position.distanceTo(enemy.position) < 1) {
-                                const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
-                                updateScore(scoreAmount);
-                                createBloodEffect(enemy.position); // Create blood effect here
-                                scene.remove(enemy);
-                                enemies.splice(index, 1);
-                                spawnEnemy();
-                            }
-                        });
-                        requestAnimationFrame(moveBullet);
-                    }
-                }
-                moveBullet();
-            }
-        }
-
-        window.addEventListener("click", shoot);
-        window.addEventListener("keydown", (event) => {
-            if (event.key === "r" && health <= 0) {
-                resetGame(); // Restart the game on "R"
-            }
-            if (event.key === "1") {
-                isShotgun = false;
-                isRocketLauncher = false;
-                document.getElementById('weapon-text').textContent = "Pistol Equipped";
-                pistol.visible = true;
-                shotgun.visible = false;
-                rocketLauncher.visible = false;
-            }
-            if (event.key === "2") {
-                isShotgun = true;
-                isRocketLauncher = false;
-                document.getElementById('weapon-text').textContent = "Shotgun Equipped";
-                pistol.visible = false;
-                shotgun.visible = true;
-                rocketLauncher.visible = false;
-            }
-            if (event.key === "3") {
-                isRocketLauncher = true;
-                isShotgun = false;
-                document.getElementById('weapon-text').textContent = "Rocket Launcher Equipped";
-                pistol.visible = false;
-                shotgun.visible = false;
-                rocketLauncher.visible = true;
-            }
-            if (event.key === "f") {
-                punch();
-            }
-            if (event.key === "x") {
-                // Check if boost message is displayed and apply health boost
-                if (healthBoostMessage.style.display === 'block') {
-                    handleHealthBoost(); // Restore health to 100
-                }
-            }
-        });
-
         const enemies = [];
         const normalEnemySpeed = 0.10; // Speed for normal enemies
         const blueEnemySpeed = 0.15; // Slightly faster speed for blue enemies
@@ -526,7 +350,7 @@
                 let currentSpeed = enemy.material.color.getHex() === 0x0000ff ? blueEnemySpeed : normalEnemySpeed;
                 enemy.position.addScaledVector(direction, currentSpeed);
 
-                // Check if enemy is close enough to the player
+                // Check if enemy is very close to the player
                 if (enemy.position.distanceTo(player.position) < 1 && (Date.now() - lastHitTime > 1000)) {
                     health -= 15;
                     updateHealthBar();
@@ -547,7 +371,7 @@
                     enemies.splice(index, 1);
                     const scoreAmount = Math.floor(Math.random() * 5) + 1; // Random score between 1 and 5
                     updateScore(scoreAmount);
-                    spawnEnemy();
+                    spawnEnemy(); // Spawn a new enemy after punching
                 }
             });
         }
@@ -568,9 +392,9 @@
 
         function gameStart() {
             playRandomMusic(); // Start playing music when the game starts
-            spawnEnemy();
-            spawnEnemy();
-            spawnEnemy();
+            for (let i = 0; i < 3; i++) {
+                spawnEnemy(); // Spawn initial enemies
+            }
             setInterval(update, 1000 / 60);
         }
 
@@ -582,12 +406,12 @@
             player.position.set(0, 1, 0);
             score = 0; // Reset score
             scoreText.textContent = `Score: ${score}`; // Update score display
-            deathScreen.style.display = 'none'; // Hide the death screen
             resetHealthBoostTimer(); // Reset health boost timer
+            deathScreen.style.display = 'none'; // Hide the death screen
 
-            spawnEnemy();
-            spawnEnemy();
-            spawnEnemy();
+            for (let i = 0; i < 3; i++) {
+                spawnEnemy(); // Spawn initial enemies
+            }
         }
 
         function animate() {
