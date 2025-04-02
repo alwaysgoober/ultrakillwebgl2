@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.6.1</title>
+    <title>ultraweb v1.6.2</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -366,7 +366,7 @@
                     for (let y = -1; y <= 1; y++) {
                         if (x === 0 && y === 0) continue;
                         const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-                        const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                        const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
                         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
                         scene.add(bullet);
                         bullet.position.copy(pistol.position).applyMatrix4(pistol.matrixWorld);
