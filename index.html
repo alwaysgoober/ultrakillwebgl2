@@ -196,7 +196,7 @@
         // Score tracking
         let score = 0;
 
-        // Object to manage key states
+        // Key state management
         const keys = {
             w: false,
             a: false,
@@ -219,7 +219,7 @@
 
         window.addEventListener("keydown", (event) => {
             if (keys.hasOwnProperty(event.key)) {
-                keys[event.key] = true; // Set the correct key state to true
+                keys[event.key] = true; // Set the current key state to true
             }
 
             if (event.key.toLowerCase() === "shift") {
@@ -235,7 +235,7 @@
 
         window.addEventListener("keyup", (event) => {
             if (keys.hasOwnProperty(event.key)) {
-                keys[event.key] = false; // Set the correct key state to false
+                keys[event.key] = false; // Set the current key state to false
             }
 
             if (event.key.toLowerCase() === "shift") {
@@ -259,11 +259,23 @@
             const right = new THREE.Vector3();
             right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
-            if (keys['w']) player.position.addScaledVector(forward, speed);
-            if (keys['s']) player.position.addScaledVector(forward, -speed);
-            if (keys['a']) player.position.addScaledVector(right, -speed);
-            if (keys['d']) player.position.addScaledVector(right, speed);
+            // Reset movement vector
+            const movement = new THREE.Vector3();
 
+            if (keys['w']) movement.add(forward);
+            if (keys['s']) movement.add(forward.clone().negate());
+            if (keys['a']) movement.add(right.clone().negate());
+            if (keys['d']) movement.add(right);
+
+            // Normalize movement vector to prevent faster diagonal movement
+            if (movement.length() > 1) {
+                movement.normalize();
+            }
+
+            // Apply movement
+            player.position.addScaledVector(movement, speed);
+
+            // Jumping
             if (keys['space'] && !isJumping) {
                 velocityY = 0.15; // Increased jump force
                 isJumping = true;
@@ -271,6 +283,7 @@
             velocityY += gravity;
             player.position.y += velocityY;
 
+            // Reset player y position after falling
             if (player.position.y <= 1) {
                 player.position.y = 1;
                 velocityY = 0;
