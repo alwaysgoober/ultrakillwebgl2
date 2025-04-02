@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.6.2</title>
+    <title>ultraweb v1.7</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -55,6 +55,21 @@
             color: white;
             font-family: Arial, sans-serif;
         }
+        /* Death Screen Style */
+        #death-screen {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 40px;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none; /* Initially hidden */
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -66,6 +81,9 @@
     </div>
     <div id="weapon-text">Pistol Equipped</div>
     <div id="score-text">Score: 0</div>
+
+    <!-- Death Screen Element -->
+    <div id="death-screen"></div>
 
     <!-- Audio Elements -->
     <audio id="walk-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/FOOTSTEPS_(A)_Walking_Loop_01.ogg" preload="auto" loop></audio>
@@ -95,7 +113,7 @@
         ];
         let lastTrackIndex = -1;
 
-        // Set the volume for the music tracks (lowered to 10%)
+        // Set music volume for all tracks
         musicTracks.forEach(track => {
             track.volume = 0.4; // Set game music volume to 10%
         });
@@ -198,8 +216,7 @@
         const gravity = -0.006; // Reduced gravity
         let isJumping = false;
 
-        // To manage sound states
-        let isWalking = false;
+        let isWalking = false; // To manage sound states
 
         // Score tracking
         let score = 0;
@@ -268,12 +285,25 @@
         let health = 100;
         const healthBarInner = document.getElementById('health-bar-inner');
         const scoreText = document.getElementById('score-text');
+        const deathScreen = document.getElementById('death-screen');
+        const deathMessages = ["l bozo", "get better", "you're trash", "change games", "move countries", "get out!", "quit buddy"];
 
         function updateHealthBar() {
             healthBarInner.style.width = `${health}%`;
             if (health <= 0) {
-                resetGame();
+                showDeathScreen();
             }
+        }
+
+        function showDeathScreen() {
+            // Stop sounds and freeze game logic
+            walkSound.pause();
+            shootSound.pause();
+
+            // Randomly select a message
+            const randomMessage = deathMessages[Math.floor(Math.random() * deathMessages.length)];
+            deathScreen.textContent = `You died\nPress "R" to restart\n${randomMessage}`;
+            deathScreen.style.display = 'block'; // Show death screen
         }
 
         function updateScore(amount) {
@@ -293,7 +323,6 @@
                 const bloodMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
                 const blood = new THREE.Mesh(bloodGeometry, bloodMaterial);
                 scene.add(blood);
-                // Position blood splats with a wider spread and ensure they touch the floor (y = 0)
                 blood.position.set(
                     position.x + (Math.random() - 0.1) * 2.0, // Spread horizontally
                     0.1, // Newly set to a very small height to simulate touching the floor
@@ -323,11 +352,9 @@
             if (!canShoot) return;
             canShoot = false;
 
-            // Set cooldown based on the current weapon
             const cooldown = isRocketLauncher ? 1000 : (isShotgun ? 500 : 300);
             setTimeout(() => canShoot = true, cooldown);
 
-            // Play the shooting sound
             shootSound.currentTime = 0; // Reset sound
             shootSound.play();
 
@@ -426,6 +453,9 @@
 
         window.addEventListener("click", shoot);
         window.addEventListener("keydown", (event) => {
+            if (event.key === "r" && health <= 0) {
+                resetGame(); // Restart the game on "R"
+            }
             if (event.key === "1") {
                 isShotgun = false;
                 isRocketLauncher = false;
@@ -470,7 +500,6 @@
         }
 
         function spawnEnemy() {
-            // Generate a random number from 1 to 5
             const randomChance = Math.floor(Math.random() * 5) + 1; // Produces 1-5
             if (randomChance === 1) { // 1 in 5 chance
                 spawnBlueEnemy(); // Spawn the blue enemy
@@ -489,7 +518,6 @@
                 const direction = new THREE.Vector3();
                 direction.subVectors(player.position, enemy.position).normalize();
 
-                // Determine speed based on enemy color
                 let currentSpeed = enemy.material.color.getHex() === 0x0000ff ? blueEnemySpeed : normalEnemySpeed;
                 enemy.position.addScaledVector(direction, currentSpeed);
 
@@ -502,7 +530,7 @@
         }
 
         function punch() {
-            const punchRadius = 3; // Increased punch radius (similar to ULTRAKILL)
+            const punchRadius = 3; // Increased punch radius
             punchSound.currentTime = 0; // Reset sound
             punchSound.play(); // Play punch sound
 
@@ -540,8 +568,6 @@
             setInterval(update, 1000 / 60);
         }
 
-        startCountdown();
-
         function resetGame() {
             health = 100;
             updateHealthBar();
@@ -550,6 +576,8 @@
             player.position.set(0, 1, 0);
             score = 0; // Reset score
             scoreText.textContent = `Score: ${score}`; // Update score display
+            deathScreen.style.display = 'none'; // Hide the death screen
+
             spawnEnemy();
             spawnEnemy();
             spawnEnemy();
@@ -558,22 +586,24 @@
         function animate() {
             requestAnimationFrame(animate);
             moveEnemies();
-            update();
-            renderer.render(scene, camera);
+            if (health > 0) {
+                update();
+                renderer.render(scene, camera);
 
-            // Bit-crushing visual effect
-            const pixelSize = 30; // Adjust for more or less pixelation
-            bitCrushCanvas.width = Math.floor(window.innerWidth / pixelSize);
-            bitCrushCanvas.height = Math.floor(window.innerHeight / pixelSize);
-            bitCrushContext.imageSmoothingEnabled = false;
+                // Bit-crushing visual effect
+                const pixelSize = 30;
+                bitCrushCanvas.width = Math.floor(window.innerWidth / pixelSize);
+                bitCrushCanvas.height = Math.floor(window.innerHeight / pixelSize);
+                bitCrushContext.imageSmoothingEnabled = false;
 
-            // Render the main scene onto the offscreen canvas with lower resolution
-            bitCrushContext.drawImage(renderer.domElement, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height);
-            // Draw the offscreen canvas back onto the main canvas
-            const mainContext = renderer.domElement.getContext('2d'); 
-            mainContext.drawImage(bitCrushCanvas, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height, 0, 0, window.innerWidth, window.innerHeight);
+                // Render the main scene onto the offscreen canvas
+                bitCrushContext.drawImage(renderer.domElement, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height);
+                const mainContext = renderer.domElement.getContext('2d'); 
+                mainContext.drawImage(bitCrushCanvas, 0, 0, bitCrushCanvas.width, bitCrushCanvas.height, 0, 0, window.innerWidth, window.innerHeight);
+            }
         }
 
+        startCountdown();
         animate();
     </script>
 </body>
