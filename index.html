@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.6.2</title>
+    <title>ultraweb v1.6.3</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
@@ -81,7 +81,7 @@
         const walkSound = document.getElementById('walk-sound');
         const shootSound = document.getElementById('shoot-sound');
         const punchSound = document.getElementById('punch-sound');
-        
+
         // Set lower volume levels for sound effects
         walkSound.volume = 0.3; // 30% volume
         shootSound.volume = 0.3; // 30% volume
@@ -106,11 +106,11 @@
             do {
                 currentTrackIndex = Math.floor(Math.random() * musicTracks.length);
             } while (currentTrackIndex === lastTrackIndex); // Ensure it's not the same as last
-            
+
             if (lastTrackIndex !== -1) {
                 musicTracks[lastTrackIndex].pause(); // Stop the last track
             }
-            
+
             lastTrackIndex = currentTrackIndex;
             musicTracks[currentTrackIndex].currentTime = 0; // Reset and play the new track
             musicTracks[currentTrackIndex].play();
@@ -190,25 +190,42 @@
             camera.rotation.x = pitch;
         });
 
-        // Adjusted base speed for player movement
-        let baseSpeed = 0.05; // Slower movement speed
-        let speed = baseSpeed;
-        const keys = {};
-        let velocityY = 0;
-        const gravity = -0.006; // Reduced gravity
-        let isJumping = false;
-
         // To manage sound states
         let isWalking = false;
 
         // Score tracking
         let score = 0;
 
+        // Object to manage key states
+        const keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false,
+            shift: false,
+            space: false,
+            '1': false,
+            '2': false,
+            '3': false,
+            f: false
+        };
+
+        // Movement and state variables
+        let baseSpeed = 0.05; // Slower movement speed
+        let speed = baseSpeed;
+        let velocityY = 0;
+        const gravity = -0.006; // Reduced gravity
+        let isJumping = false;
+
         window.addEventListener("keydown", (event) => {
-            keys[event.key.toLowerCase()] = true;
+            if (keys.hasOwnProperty(event.key)) {
+                keys[event.key] = true; // Set the correct key state to true
+            }
+
             if (event.key.toLowerCase() === "shift") {
                 speed = baseSpeed * 1.5; // Sprint speed (optional)
             }
+
             // Start walking sound if the player is moving
             if (!isWalking && (keys['w'] || keys['a'] || keys['s'] || keys['d'])) {
                 walkSound.play();
@@ -217,10 +234,14 @@
         });
 
         window.addEventListener("keyup", (event) => {
-            keys[event.key.toLowerCase()] = false;
+            if (keys.hasOwnProperty(event.key)) {
+                keys[event.key] = false; // Set the correct key state to false
+            }
+
             if (event.key.toLowerCase() === "shift") {
                 speed = baseSpeed; // Reset to normal speed
             }
+
             // Stop walking sound if the player stops moving
             if (isWalking && !(keys['w'] || keys['a'] || keys['s'] || keys['d'])) {
                 walkSound.pause();
@@ -243,7 +264,7 @@
             if (keys['a']) player.position.addScaledVector(right, -speed);
             if (keys['d']) player.position.addScaledVector(right, speed);
 
-            if (keys[' '] && !isJumping) {
+            if (keys['space'] && !isJumping) {
                 velocityY = 0.15; // Increased jump force
                 isJumping = true;
             }
@@ -263,6 +284,11 @@
             pistol.position.set(0.5 + swayX, -0.5 + swayY, -1);
             shotgun.position.set(0.5 + swayX, -0.5 + swayY, -1);
             rocketLauncher.position.set(0.5 + swayX, -0.5 + swayY, -1);
+
+            // Check for punching
+            if (keys['f']) {
+                punch();
+            }
         }
 
         let health = 100;
@@ -425,6 +451,7 @@
         }
 
         window.addEventListener("click", shoot);
+        
         window.addEventListener("keydown", (event) => {
             if (event.key === "1") {
                 isShotgun = false;
@@ -449,9 +476,6 @@
                 pistol.visible = false;
                 shotgun.visible = false;
                 rocketLauncher.visible = true;
-            }
-            if (event.key === "f") {
-                punch();
             }
         });
 
