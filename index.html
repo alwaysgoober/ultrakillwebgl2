@@ -1,16 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.7.5</title>
+    <title>ultraweb v1.7</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
-        #crosshair { position: fixed; top: 50%; left: 50%; width: 10px; height: 10px; background-color: red; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
-        #health-bar { position: fixed; top: 10px; left: 10px; width: 200px; height: 30px; background-color: gray; border-radius: 5px; }
-        #health-bar-inner { width: 100%; height: 100%; background-color: green; border-radius: 5px; }
-        #countdown { position: fixed; top: 50%; left: 50%; font-size: 50px; color: white; font-family: Arial, sans-serif; transform: translate(-50%, -50%); }
-        #weapon-text { position: fixed; bottom: 10px; right: 10px; font-size: 20px; color: blue; }
-        #score-text { position: fixed; top: 10px; right: 10px; font-size: 20px; color: white; font-family: Arial, sans-serif; }
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #health-bar {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 200px;
+            height: 30px;
+            background-color: gray;
+            border-radius: 5px;
+        }
+        #health-bar-inner {
+            width: 100%;
+            height: 100%;
+            background-color: green;
+            border-radius: 5px;
+        }
+        #countdown {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            font-size: 50px;
+            color: white;
+            font-family: Arial, sans-serif;
+            transform: translate(-50%, -50%);
+        }
+        #weapon-text {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 20px;
+            color: blue;
+        }
+        #score-text {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
         #health-boost-message {
             position: fixed;
             bottom: 50px; /* Adjust the position */
@@ -61,7 +105,7 @@
         const walkSound = document.getElementById('walk-sound');
         const shootSound = document.getElementById('shoot-sound');
         const punchSound = document.getElementById('punch-sound');
-
+        
         // Set lower volume levels for sound effects
         walkSound.volume = 0.3; // 30% volume
         shootSound.volume = 0.3; // 30% volume
@@ -454,27 +498,24 @@
         const blueEnemySpeed = 0.15; // Slightly faster speed for blue enemies
         let lastHitTime = 0;
 
-        function spawnBlueEnemy() {
-            const blueEnemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
-            const blueEnemyMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
-            const blueEnemy = new THREE.Mesh(blueEnemyGeometry, blueEnemyMaterial);
-            scene.add(blueEnemy);
-            blueEnemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
-            enemies.push(blueEnemy);
-        }
-
         function spawnEnemy() {
             const randomChance = Math.floor(Math.random() * 5) + 1; // Produces 1-5
-            if (randomChance === 1) { // 1 in 5 chance
-                spawnBlueEnemy(); // Spawn the blue enemy
+            let enemy;
+
+            if (randomChance === 1) { // 1 in 5 chance for blue enemy
+                const blueEnemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
+                const blueEnemyMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
+                enemy = new THREE.Mesh(blueEnemyGeometry, blueEnemyMaterial);
             } else {
                 const enemyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2);
                 const enemyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
-                scene.add(enemy);
-                enemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
-                enemies.push(enemy);
+                enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
             }
+
+            // Position the enemy within bounds (make sure they spawn in front of the player)
+            enemy.position.set(Math.random() * 40 - 20, 1, Math.random() * 40 - 20);
+            scene.add(enemy);
+            enemies.push(enemy);
         }
 
         function moveEnemies() {
@@ -485,6 +526,7 @@
                 let currentSpeed = enemy.material.color.getHex() === 0x0000ff ? blueEnemySpeed : normalEnemySpeed;
                 enemy.position.addScaledVector(direction, currentSpeed);
 
+                // Check if enemy is close enough to the player
                 if (enemy.position.distanceTo(player.position) < 1 && (Date.now() - lastHitTime > 1000)) {
                     health -= 15;
                     updateHealthBar();
