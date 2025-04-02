@@ -1,59 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ultraweb v1.7</title>
+    <title>ultraweb v1.7.5</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; image-rendering: pixelated; }
-        #crosshair {
+        #crosshair { position: fixed; top: 50%; left: 50%; width: 10px; height: 10px; background-color: red; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        #health-bar { position: fixed; top: 10px; left: 10px; width: 200px; height: 30px; background-color: gray; border-radius: 5px; }
+        #health-bar-inner { width: 100%; height: 100%; background-color: green; border-radius: 5px; }
+        #countdown { position: fixed; top: 50%; left: 50%; font-size: 50px; color: white; font-family: Arial, sans-serif; transform: translate(-50%, -50%); }
+        #weapon-text { position: fixed; bottom: 10px; right: 10px; font-size: 20px; color: blue; }
+        #score-text { position: fixed; top: 10px; right: 10px; font-size: 20px; color: white; font-family: Arial, sans-serif; }
+        #health-boost-message {
             position: fixed;
-            top: 50%;
+            bottom: 50px; /* Adjust the position */
             left: 50%;
-            width: 10px;
-            height: 10px;
-            background-color: red;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-        }
-        #health-bar {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            width: 200px;
-            height: 30px;
-            background-color: gray;
-            border-radius: 5px;
-        }
-        #health-bar-inner {
-            width: 100%;
-            height: 100%;
-            background-color: green;
-            border-radius: 5px;
-        }
-        #countdown {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            font-size: 50px;
-            color: white;
-            font-family: Arial, sans-serif;
-            transform: translate(-50%, -50%);
-        }
-        #weapon-text {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
+            transform: translateX(-50%);
             font-size: 20px;
-            color: blue;
-        }
-        #score-text {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            font-size: 20px;
-            color: white;
-            font-family: Arial, sans-serif;
+            color: yellow;
+            display: none; /* Initially hidden */
         }
         /* Death Screen Style */
         #death-screen {
@@ -81,16 +46,13 @@
     </div>
     <div id="weapon-text">Pistol Equipped</div>
     <div id="score-text">Score: 0</div>
-
-    <!-- Death Screen Element -->
+    <div id="health-boost-message">Press X for health boost</div>
     <div id="death-screen"></div>
 
     <!-- Audio Elements -->
     <audio id="walk-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/FOOTSTEPS_(A)_Walking_Loop_01.ogg" preload="auto" loop></audio>
     <audio id="shoot-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/Shoot1.ogg" preload="auto"></audio>
     <audio id="punch-sound" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/PunchSwoosh.ogg" preload="auto"></audio>
-
-    <!-- New Game Music Elements -->
     <audio id="game-music-1" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/0-1.wav" preload="auto" loop></audio>
     <audio id="game-music-2" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/0-2.wav" preload="auto" loop></audio>
     <audio id="game-music-3" src="https://github.com/alwaysgoober/ultraweb/raw/refs/heads/main/1-1.wav" preload="auto" loop></audio>
@@ -99,7 +61,7 @@
         const walkSound = document.getElementById('walk-sound');
         const shootSound = document.getElementById('shoot-sound');
         const punchSound = document.getElementById('punch-sound');
-        
+
         // Set lower volume levels for sound effects
         walkSound.volume = 0.3; // 30% volume
         shootSound.volume = 0.3; // 30% volume
@@ -115,24 +77,8 @@
 
         // Set music volume for all tracks
         musicTracks.forEach(track => {
-            track.volume = 0.4; // Set game music volume to 10%
+            track.volume = 0.4; // Set game music volume to 40%
         });
-
-        // Function to play a random music track
-        function playRandomMusic() {
-            let currentTrackIndex;
-            do {
-                currentTrackIndex = Math.floor(Math.random() * musicTracks.length);
-            } while (currentTrackIndex === lastTrackIndex); // Ensure it's not the same as last
-            
-            if (lastTrackIndex !== -1) {
-                musicTracks[lastTrackIndex].pause(); // Stop the last track
-            }
-            
-            lastTrackIndex = currentTrackIndex;
-            musicTracks[currentTrackIndex].currentTime = 0; // Reset and play the new track
-            musicTracks[currentTrackIndex].play();
-        }
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(120, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -220,6 +166,9 @@
 
         // Score tracking
         let score = 0;
+        const scoreText = document.getElementById('score-text');
+        const healthBoostMessage = document.getElementById('health-boost-message');
+        let healthBoostTimeout;
 
         window.addEventListener("keydown", (event) => {
             keys[event.key.toLowerCase()] = true;
@@ -284,9 +233,6 @@
 
         let health = 100;
         const healthBarInner = document.getElementById('health-bar-inner');
-        const scoreText = document.getElementById('score-text');
-        const deathScreen = document.getElementById('death-screen');
-        const deathMessages = ["l bozo", "get better", "you're trash", "change games", "move countries", "get out!", "quit buddy"];
 
         function updateHealthBar() {
             healthBarInner.style.width = `${health}%`;
@@ -295,20 +241,32 @@
             }
         }
 
-        function showDeathScreen() {
-            // Stop sounds and freeze game logic
-            walkSound.pause();
-            shootSound.pause();
-
-            // Randomly select a message
-            const randomMessage = deathMessages[Math.floor(Math.random() * deathMessages.length)];
-            deathScreen.textContent = `You died\nPress "R" to restart\n${randomMessage}`;
-            deathScreen.style.display = 'block'; // Show death screen
+        function showHealthBoostMessage() {
+            healthBoostMessage.style.display = 'block';
+            healthBoostTimeout = setTimeout(() => {
+                healthBoostMessage.style.display = 'none';
+            }, 10000); // Hide message after 10 seconds
         }
 
         function updateScore(amount) {
             score += amount;
             scoreText.textContent = `Score: ${score}`;
+
+            if (score % 100 === 0) {
+                showHealthBoostMessage();
+            }
+        }
+
+        function resetHealthBoostTimer() {
+            clearTimeout(healthBoostTimeout);
+            healthBoostMessage.style.display = 'none';
+        }
+
+        function handleHealthBoost() {
+            // Restore health to 100
+            health = 100;
+            updateHealthBar();
+            resetHealthBoostTimer();
         }
 
         let canShoot = true;
@@ -483,6 +441,12 @@
             if (event.key === "f") {
                 punch();
             }
+            if (event.key === "x") {
+                // Check if boost message is displayed and apply health boost
+                if (healthBoostMessage.style.display === 'block') {
+                    handleHealthBoost(); // Restore health to 100
+                }
+            }
         });
 
         const enemies = [];
@@ -577,6 +541,7 @@
             score = 0; // Reset score
             scoreText.textContent = `Score: ${score}`; // Update score display
             deathScreen.style.display = 'none'; // Hide the death screen
+            resetHealthBoostTimer(); // Reset health boost timer
 
             spawnEnemy();
             spawnEnemy();
