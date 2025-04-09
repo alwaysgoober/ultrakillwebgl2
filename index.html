@@ -115,7 +115,7 @@
 
         // Set music volume for all tracks
         musicTracks.forEach(track => {
-            track.volume = 0.4; // Set game music volume to 10%
+            track.volume = 0.4; // Set game music volume to 40%
         });
 
         // Function to play a random music track
@@ -315,7 +315,10 @@
         let isShotgun = false;
         let isRocketLauncher = false;
 
-        // Function to create a blood effect
+        // Punch variables
+        let punchCooldown = false; // A flag to indicate if we are in a cooldown period
+        const punchCooldownTime = 1000; // Cooldown period in milliseconds (1 second)
+
         function createBloodEffect(position) {
             const bloodCount = 20; // Number of blood splats per hit
             for (let i = 0; i < bloodCount; i++) {
@@ -530,6 +533,8 @@
         }
 
         function punch() {
+            if (punchCooldown) return; // Prevent punching if on cooldown
+
             const punchRadius = 3; // Increased punch radius
             punchSound.currentTime = 0; // Reset sound
             punchSound.play(); // Play punch sound
@@ -544,6 +549,12 @@
                     spawnEnemy();
                 }
             });
+
+            // Set punch cooldown
+            punchCooldown = true;
+            setTimeout(() => {
+                punchCooldown = false; // Reset cooldown after 1 second
+            }, punchCooldownTime);
         }
 
         let countdown = 3;
