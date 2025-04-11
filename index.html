@@ -164,9 +164,9 @@
         const floorTexture = new THREE.TextureLoader().load("https://res.cloudinary.com/bedrosians/image/upload/t_product_detail,f_auto/v1/cdn-bedrosian/assets/products/hiresimages/STPURBNOV2424.jpg");
         floorTexture.wrapS = THREE.RepeatWrapping;
         floorTexture.wrapT = THREE.RepeatWrapping;
-        floorTexture.repeat.set(15, 15);
+        floorTexture.repeat.set(30, 30);
         const floorMaterial = new THREE.MeshBasicMaterial({ map: floorTexture, side: THREE.DoubleSide });
-        const floorGeometry = new THREE.PlaneGeometry(200, 200);
+        const floorGeometry = new THREE.PlaneGeometry(400, 400);
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
